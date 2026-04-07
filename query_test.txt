@@ -1,0 +1,6 @@
+Rows: 5
+{'name': 'Jim Miller', 'fights': 46}
+{'name': 'Andrei Arlovski', 'fights': 42}
+{'name': 'Donald Cerrone', 'fights': 38}
+{'name': 'Charles Oliveira', 'fights': 37}
+{'name': 'Neil Magny', 'fights': 37}

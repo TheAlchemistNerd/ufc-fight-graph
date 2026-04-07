@@ -227,11 +227,11 @@ class UfcStatsScraper:
                 span = item.find('span')
                 if span:
                     fight_details['referee'] = span.text.strip()
-            
+
             elif label_text == "Time format:":
                 full_text = item.text.strip()
                 fight_details['time_format'] = full_text.replace("Time format:", "").strip()
-            
+
             elif label_text == "Details:":
                 # Get the text after the label (may be in an <i> or <span> sibling)
                 siblings = item.find_all(['i', 'span'])
@@ -246,6 +246,27 @@ class UfcStatsScraper:
                     full_text = item.text.strip()
                     if "Details:" in full_text:
                         fight_details['finish_details'] = full_text.split("Details:")[-1].strip()
+
+        # Extract judge names and scorecards
+        # Structure: <i class="b-fight-details__text-item"><span>Sal D'amato</span> 27 - 30.</i>
+        # Judges appear in the same container but WITHOUT a label <i> child
+        fight_details['judges'] = []
+        # Find the parent container that holds judges (sibling of referee info)
+        all_text_items = soup.find_all('i', class_='b-fight-details__text-item')
+        for item in all_text_items:
+            label = item.find('i', class_='b-fight-details__label')
+            if label:
+                continue  # Skip items with labels (referee, time format, etc.)
+            span = item.find('span')
+            if span:
+                judge_name = span.text.strip()
+                # Get the score text (everything after the span)
+                score_text = item.get_text(strip=True).replace(judge_name, '').strip().rstrip('.')
+                if judge_name and score_text:
+                    fight_details['judges'].append({
+                        'name': judge_name,
+                        'score': score_text,
+                    })
 
         # Parse fight statistics tables
         round_tables = soup.find_all('table', class_='b-fight-details__table')

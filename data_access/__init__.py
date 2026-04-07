@@ -1,46 +1,41 @@
-"""
-Data Access Layer - Neo4j connection and query repositories.
-
-All database queries live here. The UI layer imports repositories
-and calls methods - zero Cypher in UI code.
-"""
+"""UFC Fight Graph - Data Access Layer."""
 
 from data_access.repositories import (
-    Neo4jClient,
-    Repository,
+    BaseRepo,
     OverviewRepo,
+    NetworkCentralityRepo,
+    NetworkRepo,
+    JudgeRepo,
     FighterRepo,
     RefereeRepo,
+    StrikingRepo,
     GeographyRepo,
     WeightClassRepo,
-    NetworkRepo,
-    EvolutionRepo,
-    StrikingRepo,
-    ChampionshipRepo,
-    FightPaceRepo,
     CareerRepo,
+    EvolutionRepo,
+    FightPaceRepo,
     StyleMatchupRepo,
     FinishRepo,
+    ChampionshipRepo,
     BettingRepo,
-    NetworkCentralityRepo,
 )
 
 __all__ = [
-    "Neo4jClient",
-    "Repository",
+    "BaseRepo",
     "OverviewRepo",
+    "NetworkCentralityRepo",
+    "NetworkRepo",
+    "JudgeRepo",
     "FighterRepo",
     "RefereeRepo",
+    "StrikingRepo",
     "GeographyRepo",
     "WeightClassRepo",
-    "NetworkRepo",
-    "EvolutionRepo",
-    "StrikingRepo",
-    "ChampionshipRepo",
-    "FightPaceRepo",
     "CareerRepo",
+    "EvolutionRepo",
+    "FightPaceRepo",
     "StyleMatchupRepo",
     "FinishRepo",
+    "ChampionshipRepo",
     "BettingRepo",
-    "NetworkCentralityRepo",
 ]

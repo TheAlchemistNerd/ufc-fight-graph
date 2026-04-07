@@ -20,7 +20,15 @@
       "Bash(taskkill *)",
       "Bash(git init)",
       "Bash(netsh *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(docker restart *)",
+      "Bash(docker start *)",
+      "Bash(rmdir *)",
+      "Bash(code *)",
+      "Bash(mkdir *)",
+      "Bash(move *)",
+      "Bash(tree *)"
     ]
   },
   "$version": 3

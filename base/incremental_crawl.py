@@ -15,8 +15,8 @@ Usage:
     python incremental_crawl.py --status      # Show current progress
 """
 
-from ucf_stats_scraper import UfcStatsScraper
-from neo4j_loader import Neo4jLoader
+from base.ucf_stats_scraper import UfcStatsScraper
+from base.neo4j_loader import Neo4jLoader
 import time
 import random
 import json

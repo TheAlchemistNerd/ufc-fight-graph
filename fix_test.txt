@@ -1,0 +1,7 @@
+Rows: 10
+              name  fights
+0       Jim Miller      46
+1  Andrei Arlovski      42
+2   Donald Cerrone      38
+3       Neil Magny      37
+4       Clay Guida      37

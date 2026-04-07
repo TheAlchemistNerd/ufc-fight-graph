@@ -1,0 +1,16 @@
+Step 1: sys.path set
+Step 2: Neo4jConfig imported
+Step 3: Neo4jClient imported
+Step 4: Connection created
+Step 5: test_connection ok=True n=13222
+Step 6: OverviewRepo imported
+Step 7: Query returned 10 rows
+              name  fights
+0       Jim Miller      46
+1  Andrei Arlovski      42
+2   Donald Cerrone      38
+3       Neil Magny      37
+4       Clay Guida      37
+Step 8: KO query returned 10 rows
+Step 9: Connection closed
+ALL DONE

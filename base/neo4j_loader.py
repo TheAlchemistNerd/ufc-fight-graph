@@ -24,6 +24,7 @@ class Neo4jLoader:
             "CREATE CONSTRAINT weightclass_name IF NOT EXISTS FOR (w:WeightClass) REQUIRE w.name IS UNIQUE",
             "CREATE CONSTRAINT referee_name IF NOT EXISTS FOR (r:Referee) REQUIRE r.name IS UNIQUE",
             "CREATE CONSTRAINT location_name IF NOT EXISTS FOR (l:Location) REQUIRE l.name IS UNIQUE",
+            "CREATE CONSTRAINT judge_name IF NOT EXISTS FOR (j:Judge) REQUIRE j.name IS UNIQUE",
         ]
         with self.driver.session() as session:
             for constraint in constraints:
@@ -151,23 +152,38 @@ class Neo4jLoader:
             query_parts.append("MERGE (ref:Referee {name: $referee}) ")
             query_parts.append("MERGE (fight)-[:OFFICIATED_BY]->(ref) ")
 
+        # Judges and their scorecards
+        judges = data.get('judges', [])
+        if judges:
+            for i, judge in enumerate(judges):
+                query_parts.append(f"MERGE (j{i}:Judge {{name: $judge_name_{i}}}) ")
+                query_parts.append(f"MERGE (fight)-[:SCORED_BY {{score: $judge_score_{i}}}]->(j{i}) ")
+
         query = "".join(query_parts)
 
-        tx.run(query,
-               event_name=data.get('event'),
-               f1_name=f1_name,
-               f2_name=f2_name,
-               fight_url=data.get('url'),
-               date=data.get('date'),
-               method=data.get('method'),
-               round=data.get('round'),
-               time=data.get('time'),
-               finish_details=data.get('finish_details'),
-               time_format=data.get('time_format'),
-               f1_result=data.get('f1_result'),
-               f2_result=data.get('f2_result'),
-               weight_class=data.get('weight_class'),
-               referee=data.get('referee'))
+        params = dict(
+            event_name=data.get('event'),
+            f1_name=f1_name,
+            f2_name=f2_name,
+            fight_url=data.get('url'),
+            date=data.get('date'),
+            method=data.get('method'),
+            round=data.get('round'),
+            time=data.get('time'),
+            finish_details=data.get('finish_details'),
+            time_format=data.get('time_format'),
+            f1_result=data.get('f1_result'),
+            f2_result=data.get('f2_result'),
+            weight_class=data.get('weight_class'),
+            referee=data.get('referee'),
+        )
+        # Add judge params
+        judges = data.get('judges', [])
+        for i, judge in enumerate(judges):
+            params[f'judge_name_{i}'] = judge.get('name')
+            params[f'judge_score_{i}'] = judge.get('score')
+
+        tx.run(query, **params)
 
     def create_fight_from_event(self, fighter_name, fight_data, event_name):
         """Create a fight relationship from event data (simpler, no full fight details)."""

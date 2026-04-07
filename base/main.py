@@ -3,8 +3,8 @@ Full UFC Stats Crawler - Crawls all fighters, fights, events, referees, location
 Loads everything into Neo4j.
 """
 
-from ucf_stats_scraper import UfcStatsScraper
-from neo4j_loader import Neo4jLoader
+from base.ucf_stats_scraper import UfcStatsScraper
+from base.neo4j_loader import Neo4jLoader
 import time
 import random
 import argparse

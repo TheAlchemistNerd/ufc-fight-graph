@@ -42,6 +42,9 @@ env/
 # Logs
 *.log
 logs/
+# Keep checkpoint files for CI/CD resume capability
+!logs/crawl_checkpoint.json
+!logs/crawl_progress.json
 
 # OS files
 .DS_Store
