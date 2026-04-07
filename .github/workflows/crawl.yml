@@ -1,0 +1,172 @@
+name: Full UFC Data Crawl
+
+on:
+  # Weekly incremental crawl (Sunday 3am UTC)
+  schedule:
+    - cron: "0 3 * * 0"
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Crawl mode"
+        required: true
+        default: "incremental"
+        type: choice
+        options:
+          - incremental
+          - events-only
+          - fighters-only
+          - full-reset
+      workers:
+        description: "Number of parallel workers"
+        required: false
+        default: "10"
+        type: string
+
+env:
+  NEO4J_URI: ${{ secrets.NEO4J_URI }}
+  NEO4J_USER: ${{ secrets.NEO4J_USER }}
+  NEO4J_PASS: ${{ secrets.NEO4J_PASS }}
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # 6 hours max
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Start Neo4j (Docker)
+        if: env.NEO4J_URI == '' || env.NEO4J_URI == 'bolt://localhost:7687'
+        run: |
+          docker run -d --name ufc-neo4j \
+            -p 7687:7687 \
+            -e NEO4J_AUTH=neo4j/${{ secrets.NEO4J_PASS || 'password' }} \
+            neo4j:latest
+          # Wait for Neo4j to be ready
+          echo "Waiting for Neo4j..."
+          for i in $(seq 1 30); do
+            if docker logs ufc-neo4j 2>&1 | grep -q "Started."; then
+              echo "Neo4j is ready!"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Restore checkpoint from cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            crawl_checkpoint.json
+            parallel_progress.json
+          key: ufc-crawl-checkpoint-${{ github.run_id }}
+          restore-keys: |
+            ufc-crawl-checkpoint-
+
+      - name: Run crawl
+        run: |
+          MODE="${{ github.event.inputs.mode || 'incremental' }}"
+          WORKERS="${{ github.event.inputs.workers || '10' }}"
+
+          echo "Running crawl: mode=$MODE workers=$WORKERS"
+
+          case $MODE in
+            "full-reset")
+              python parallel_scraper.py --workers $WORKERS --delay 0.8 --reset
+              ;;
+            "events-only")
+              python parallel_scraper.py --workers $WORKERS --delay 0.8 --events-only
+              ;;
+            "fighters-only")
+              python parallel_scraper.py --workers $WORKERS --delay 0.8 --fighters-only
+              ;;
+            *)
+              python parallel_scraper.py --workers $WORKERS --delay 0.8
+              ;;
+          esac
+        env:
+          NEO4J_URI: ${{ env.NEO4J_URI || 'bolt://localhost:7687' }}
+          NEO4J_USER: ${{ env.NEO4J_USER || 'neo4j' }}
+          NEO4J_PASS: ${{ env.NEO4J_PASS || 'password' }}
+
+      - name: Save checkpoint to cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            crawl_checkpoint.json
+            parallel_progress.json
+          key: ufc-crawl-checkpoint-${{ github.run_id }}
+
+      - name: Export Neo4j data as CSV
+        if: success()
+        run: |
+          python -c "
+          from neo4j import GraphDatabase
+          import os
+          import csv
+
+          uri = os.environ.get('NEO4J_URI', 'bolt://localhost:7687')
+          user = os.environ.get('NEO4J_USER', 'neo4j')
+          password = os.environ.get('NEO4J_PASS', 'password')
+
+          driver = GraphDatabase.driver(uri, auth=(user, password))
+
+          # Export fighters
+          with driver.session() as session:
+              result = session.run('MATCH (f:Fighter) RETURN f.name AS name, f.nickname AS nickname, f.record AS record, f.stance AS stance, f.wins AS wins, f.losses AS losses, f.draws AS draws, f.height_inches AS height, f.reach_inches AS reach, f.weight_lbs AS weight, f.slpm AS slpm, f.str_acc AS str_acc, f.sapm AS sapm, f.str_def AS str_def')
+              with open('export_fighters.csv', 'w', newline='') as f:
+                  w = csv.DictWriter(f, fieldnames=result.keys())
+                  w.writeheader()
+                  for r in result:
+                      w.writerow(dict(r))
+
+              # Export events
+              result = session.run('MATCH (e:Event) RETURN e.name AS name, e.date AS date, e.url AS url')
+              with open('export_events.csv', 'w', newline='') as f:
+                  w = csv.DictWriter(f, fieldnames=result.keys())
+                  w.writeheader()
+                  for r in result:
+                      w.writerow(dict(r))
+
+              # Export fights
+              result = session.run('MATCH (f:Fight) RETURN f.url AS url, f.date AS date, f.method AS method, f.round AS round, f.time AS time')
+              with open('export_fights.csv', 'w', newline='') as f:
+                  w = csv.DictWriter(f, fieldnames=result.keys())
+                  w.writeheader()
+                  for r in result:
+                      w.writerow(dict(r))
+
+              # Summary
+              for label in ['Fighter', 'Event', 'Fight', 'WeightClass', 'Location', 'Referee']:
+                  r = session.run(f'MATCH (n:{label}) RETURN count(n)').single()
+                  print(f'{label}: {r[0]}')
+
+          driver.close()
+          "
+
+      - name: Upload exported data
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufc-data-export-${{ github.run_number }}
+          path: |
+            export_fighters.csv
+            export_events.csv
+            export_fights.csv
+
+      - name: Stop Neo4j
+        if: always()
+        run: |
+          docker stop ufc-neo4j || true
+          docker rm ufc-neo4j || true

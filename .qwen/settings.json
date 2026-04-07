@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python *)",
+      "WebFetch(ufcstats.com)",
+      "Bash(curl.exe *)",
+      "Bash(findstr *)",
+      "Bash(select-string *)",
+      "Bash(powershell *)",
+      "Bash(type *)",
+      "Bash(del *)",
+      "Bash(docker ps *)",
+      "Bash(pip install *)",
+      "Bash(.venv\\scripts\\pip *)",
+      "Bash(.venv\\scripts\\python *)",
+      "Bash(tasklist)",
+      "Bash(dir *)",
+      "Bash(.venv\\scripts\\streamlit *)",
+      "Bash(timeout *)",
+      "Bash(taskkill *)",
+      "Bash(git init)",
+      "Bash(netsh *)",
+      "Bash(git add *)"
+    ]
+  },
+  "$version": 3
+}
