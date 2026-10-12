@@ -1,22 +1,26 @@
-"""
-UFC Fight Graph - Dashboard Entry Point.
-
-Usage:
-    python run_dashboard.py
-"""
+"""Start the Streamlit dashboard from any working directory."""
 
 import subprocess
 import sys
+from pathlib import Path
+
 
 def main():
-    subprocess.run([
-        sys.executable, "-m", "streamlit", "run", "web/app.py",
-        "--server.headless", "true",
-        "--server.port", "8501",
-        "--server.address", "127.0.0.1",
-        "--server.enableCORS", "false",
-        "--browser.gatherUsageStats", "false",
-    ])
+    app = Path(__file__).resolve().parent / "web" / "app.py"
+    return subprocess.call(
+        [
+            sys.executable,
+            "-m",
+            "streamlit",
+            "run",
+            str(app),
+            "--server.headless=true",
+            "--browser.gatherUsageStats=false",
+            *sys.argv[1:],
+        ],
+        cwd=app.parent.parent,
+    )
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
