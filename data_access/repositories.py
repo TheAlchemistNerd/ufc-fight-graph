@@ -79,6 +79,38 @@ class OverviewRepo(BaseRepo):
         )
 
 
+class ExplorerRepo(BaseRepo):
+    """One row per fight, with nested participants and officials for interactive browsing."""
+
+    def get_fights(self) -> pd.DataFrame:
+        return self._query("""
+            MATCH (fight:Fight)
+            OPTIONAL MATCH (fight)-[:PART_OF]->(event:Event)
+            OPTIONAL MATCH (event)-[:HELD_AT]->(location:Location)
+            WITH fight, head(collect(DISTINCT event)) AS event,
+                 head(collect(DISTINCT location.name)) AS location
+            OPTIONAL MATCH (fighter:Fighter)-[result:FOUGHT]->(fight)
+            WITH fight, event, location,
+                 collect(DISTINCT {name: fighter.name, url: fighter.url, result: result.result})
+                 AS fighters
+            OPTIONAL MATCH (fight)-[:IN_WEIGHT_CLASS]->(division:WeightClass)
+            WITH fight, event, location, fighters, collect(DISTINCT division.name) AS divisions
+            OPTIONAL MATCH (fight)-[:OFFICIATED_BY]->(referee:Referee)
+            WITH fight, event, location, fighters, divisions,
+                 head(collect(DISTINCT referee.name)) AS referee
+            OPTIONAL MATCH (fight)-[score:SCORED_BY]->(judge:Judge)
+            RETURN fight.url AS fight_url, coalesce(fight.date, event.date) AS date,
+                   event.name AS event, event.url AS event_url, location,
+                   fight.method AS method, fight.round AS round, fight.time AS time,
+                   fight.time_format AS time_format, fight.finish_details AS finish_details,
+                   coalesce(fight.is_title_fight, false) AS title_fight,
+                   fighters, divisions, referee,
+                   [card IN collect(DISTINCT {judge: judge.name, score: score.score})
+                    WHERE card.judge IS NOT NULL] AS judges
+            ORDER BY date DESC, event, fight_url
+        """)
+
+
 class NetworkCentralityRepo(BaseRepo):
     """Degree and reach metrics; influence/bridge scores are documented proxies."""
 
@@ -314,7 +346,11 @@ class FighterRepo(BaseRepo):
             RETURN f.name AS name, f.nickname AS nickname,
                    f.record AS record, f.stance AS stance,
                    f.height AS height, f.reach AS reach, f.weight AS weight,
-                   f.wins AS wins, f.losses AS losses, f.draws AS draws
+                   f.wins AS wins, f.losses AS losses, f.draws AS draws,
+                   f.url AS url, f.dob AS dob, f.slpm AS slpm, f.sapm AS sapm,
+                   f.str_acc AS str_acc, f.str_def AS str_def,
+                   f.td_avg AS td_avg, f.td_acc AS td_acc, f.td_def AS td_def,
+                   f.sub_avg AS sub_avg
         """,
             {"name": name},
         )

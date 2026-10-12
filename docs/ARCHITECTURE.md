@@ -9,12 +9,20 @@
 | `infrastructure/checkpoint.py` | Atomic, database-scoped crawl checkpoints |
 | `data_access/loader.py` | Graph writes, coverage, backfill selection and local repairs |
 | `data_access/repositories.py` | Dashboard read queries |
-| `web/` | Streamlit pages and Plotly charts |
-| `run_crawl.py`, `run_backfill.py`, `run_backup.py` | Command-line workflows |
+| `web/app.py` | Grouped navigation and analytical pages |
+| `web/explorer.py`, `web/catalogue.py` | Interactive archive, profiles, comparisons, officials and shared filters |
+| `web/charts.py`, `web/style.css`, `.streamlit/config.toml` | Shared charts, layout and theme |
+| `run_crawl.py`, `run_backfill.py`, `run_backup.py`, `run_upload.py` | Command-line workflows |
 
 The project uses one scraper, one writer and one dashboard. HTTP workers own their
 sessions. The coordinator writes data and checkpoints only after a commit. Write
 and query failures propagate; the dashboard reports query failures explicitly.
+
+The explorer reads one row per fight with nested participants, division labels and
+scorecards, avoiding row multiplication across relationships. A two-minute cache
+is scoped to the database connection and can be cleared from the sidebar. Filters,
+pagination and CSV export operate on this read-only catalogue. Profile comparisons
+retain source URL identities for fighters who share a name.
 
 ## Graph schema
 

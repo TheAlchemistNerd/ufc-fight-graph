@@ -64,6 +64,18 @@ properties and relationships, with a checksum manifest. Restore targets an empty
 database and preserves Neo4j temporal types. Upload the ZIP to Google
 Drive for an off-machine copy. See [backfill and recovery](docs/DATA_OPERATIONS.md).
 
+The dashboard groups pages into Explore, Officials, Analysis and Network:
+
+- Search the fight archive by fighter, event, referee or location; filter by year,
+  division, result type or title status, then export matching rows to CSV.
+- Select a fight to inspect participants, results, referee and published judge totals.
+- Explore fighter career statistics and opponent maps, or compare two profiles.
+- Browse referee assignments and judge scorecards alongside the existing analyses.
+
+Archive reads are cached for two minutes. **Refresh data** reloads the archive after
+an import. Career averages and records can include bouts outside the stored UFC
+history; published judge totals do not include round-by-round scorecards.
+
 Use `python run_crawl.py --backup-dir backups` to export a snapshot after the crawl.
 Add `--upload-drive` after configuring the [direct Google Drive uploader](docs/DATA_OPERATIONS.md#direct-google-drive-uploads)
 to upload the final snapshot independently of Codex. An existing crawl can use

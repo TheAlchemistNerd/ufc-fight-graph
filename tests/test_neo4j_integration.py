@@ -21,6 +21,7 @@ from data_access.loader import Neo4jLoader
 from data_access.repositories import (
     CareerRepo,
     ChampionshipRepo,
+    ExplorerRepo,
     FighterRepo,
     FightPaceRepo,
     GeographyRepo,
@@ -33,7 +34,7 @@ from data_access.repositories import (
 from domain.normalization import normalize_fighter
 from infrastructure.neo4j_client import Neo4jConnection
 from infrastructure.ufcstats import UfcStatsScraper
-from web.app import PAGES, get_repos
+from web.app import NAVIGATION, PAGES, get_repos
 
 pytestmark = pytest.mark.integration
 
@@ -395,7 +396,41 @@ def test_every_dashboard_page_renders_against_real_data(graph, monkeypatch, page
     monkeypatch.setattr("web.app.get_connection", lambda: graph.db)
     app = AppTest.from_string("from web.app import main\nmain()", default_timeout=30)
     app.run()
+    section = next(section for section, pages in NAVIGATION.items() if page in pages)
+    app.sidebar.selectbox[0].set_value(section).run()
     app.sidebar.radio[0].set_value(page).run()
     assert not app.exception
     assert not app.error
     assert app.title
+
+
+def test_archive_has_one_row_per_fight_with_multiple_divisions_and_scorecards(graph):
+    extra = graph.name("Alternative division")
+    graph.db.run_write(
+        "MATCH (f:Fight {url: $url}) MERGE (w:WeightClass {name: $name}) "
+        "MERGE (f)-[:IN_WEIGHT_CLASS]->(w)",
+        {"url": graph.fights[2]["url"], "name": extra},
+    )
+    try:
+        fights = ExplorerRepo(graph.db).get_fights()
+        assert len(fights) == fights.fight_url.nunique() == 10
+        row = fights.set_index("fight_url").loc[graph.fights[2]["url"]]
+        assert len(row["divisions"]) == 2
+        assert len(row["fighters"]) == 2
+        assert len(row["judges"]) == 3
+        assert {f["result"] for f in row["fighters"]} == {"win", "loss"}
+    finally:
+        graph.db.run_write("MATCH (w:WeightClass {name: $name}) DETACH DELETE w", {"name": extra})
+
+
+def test_archive_filters_clear_and_title_bouts(graph, monkeypatch):
+    monkeypatch.setattr("web.app.get_connection", lambda: graph.db)
+    app = AppTest.from_string("from web.app import main\nmain()", default_timeout=30).run()
+    app.sidebar.radio[0].set_value("Fight archive").run()
+    app.text_input[0].set_value("no-such-matchup-123").run()
+    assert any("0 matching fights" in item.value for item in app.subheader)
+    next(button for button in app.button if button.label == "Clear filters").click().run()
+    assert any("10 matching fights" in item.value for item in app.subheader)
+    app.checkbox[0].check().run()
+    assert any("1 matching fights" in item.value for item in app.subheader)
+    assert not app.exception and not app.error

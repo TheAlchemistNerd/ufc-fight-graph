@@ -1,0 +1,23 @@
+.block-container {max-width: 1480px; padding-top: 4.5rem; padding-bottom: 3rem;}
+h1 {font-weight: 750 !important; letter-spacing: -.045em;}
+h2, h3 {letter-spacing: -.02em;}
+[data-testid="stSidebar"] {border-right: 1px solid #ffffff12;}
+[data-testid="stMetric"] {border-top: 2px solid #ef5544; padding: 14px 0 10px;}
+[data-testid="stMetricLabel"] {color: #a9b0bd;}
+[data-testid="stMetricValue"] {font-variant-numeric: tabular-nums; letter-spacing: -.04em;}
+[data-testid="stTabs"] button {font-weight: 600;}
+.brand {font-weight: 850; font-size: 1.45rem; letter-spacing: -.05em; padding: 8px 0;}
+.brand span {color: #ef5544;}
+.eyebrow {color: #ef7566; text-transform: uppercase; font-size: .72rem; font-weight: 750;
+          letter-spacing: .16em; margin-bottom: .8rem;}
+.lede {color: #a9b0bd; max-width: 680px; font-size: 1.05rem; line-height: 1.7; margin: 0 0 1.4rem;}
+.fighter-name {font-size: 1.55rem; font-weight: 750; letter-spacing: -.03em;}
+.result-tag {display:inline-block; padding: 3px 9px; border: 1px solid #ffffff30;
+             border-radius: 4px; font-size: .7rem; letter-spacing: .12em; color: #bbc3d1;}
+.result-win {color: #7cdcb3; border-color: #7cdcb350;}
+.result-loss {color: #ff998e; border-color: #ff998e50;}
+@media (max-width: 700px) {
+  .block-container {padding: 4rem 1rem 2rem;}
+  h1 {font-size: 2rem !important;}
+  [data-testid="stMetricValue"] {font-size: 1.7rem;}
+}

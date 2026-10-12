@@ -4,5 +4,5 @@ lxml>=5.3,<7
 neo4j>=5.28,<6
 pandas>=2.2.3,<3
 plotly>=6,<7
-streamlit>=1.45,<2
+streamlit>=1.50,<2
 python-dotenv>=1,<2
