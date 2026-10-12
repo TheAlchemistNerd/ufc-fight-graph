@@ -124,7 +124,9 @@ def main(argv=None):
             )
             if not args.skip_details:
                 loader.repair_local_metadata()
-                results["details"] = backfill(loader, scraper)
+                results["details"] = backfill(
+                    loader, scraper, workers=args.workers, delay=args.delay
+                )
         if not args.events_only:
             urls = [
                 url

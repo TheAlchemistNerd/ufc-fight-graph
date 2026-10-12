@@ -1,6 +1,7 @@
 """Ingestion contracts exercised without network or a running database."""
 
 import json
+import threading
 from dataclasses import replace
 from unittest.mock import MagicMock, Mock
 
@@ -258,14 +259,16 @@ def test_backfill_database_failure_is_reported_without_counting_update(fight):
     }
 
 
-def test_backfill_dry_run_paginates_with_no_http_or_writes():
+def test_backfill_dry_run_paginates_with_no_http_or_writes(monkeypatch):
     loader = Mock()
     loader.backfill_candidates.side_effect = [
         [{"url": "a", "date": None}],
         [{"url": "b", "date": None}],
     ]
     scraper = Mock()
-    stats = run_backfill.backfill(loader, scraper, limit=2, refresh=True, dry_run=True)
+    factory = Mock()
+    monkeypatch.setattr(run_backfill, "UfcStatsScraper", factory)
+    stats = run_backfill.backfill(loader, scraper, limit=2, refresh=True, dry_run=True, workers=4)
     assert stats == {"selected": 2, "updated": 0, "missing_referee": 0, "failed": 0}
     assert [c.args for c in loader.backfill_candidates.call_args_list] == [
         ("", 2, True),
@@ -273,6 +276,103 @@ def test_backfill_dry_run_paginates_with_no_http_or_writes():
     ]
     scraper.scrape_fight_details.assert_not_called()
     loader.create_fight.assert_not_called()
+    factory.assert_not_called()
+
+
+def test_parallel_backfill_commits_on_coordinator_and_keeps_url_pagination(monkeypatch):
+    coordinator = threading.get_ident()
+    b_committed = threading.Event()
+    start_together = threading.Barrier(2)
+    sessions = []
+    fetched = []
+    committed = []
+
+    class WorkerScraper:
+        def __init__(self, delay):
+            assert delay == 0.25
+            self.owner = threading.get_ident()
+            self.closed = False
+            sessions.append(self)
+
+        def scrape_fight_details(self, url, event_date=None):
+            assert threading.get_ident() == self.owner != coordinator
+            fetched.append(url)
+            if url in ("a", "b"):
+                start_together.wait(timeout=5)
+            if url == "a":
+                assert b_committed.wait(timeout=5)
+            return {"url": url, "referee": "Ref"}
+
+        def close(self):
+            self.closed = True
+
+    def commit(data, *, enriched):
+        assert threading.get_ident() == coordinator
+        assert enriched
+        committed.append(data["url"])
+        if data["url"] == "b":
+            b_committed.set()
+
+    loader = Mock()
+    loader.backfill_candidates.side_effect = [
+        [{"url": "a", "date": None}, {"url": "b", "date": None}],
+        [{"url": "c", "date": None}],
+    ]
+    loader.create_fight.side_effect = commit
+    monkeypatch.setattr(run_backfill, "UfcStatsScraper", WorkerScraper)
+    stats = run_backfill.backfill(loader, Mock(), limit=3, workers=2, delay=0.25)
+    assert stats == {"selected": 3, "updated": 3, "missing_referee": 0, "failed": 0}
+    assert committed == ["b", "a", "c"]
+    assert sorted(fetched) == ["a", "b", "c"]
+    assert [call.args for call in loader.backfill_candidates.call_args_list] == [
+        ("", 3, False),
+        ("b", 1, False),
+    ]
+    assert len(sessions) == 2 and all(session.closed for session in sessions)
+
+
+def test_parallel_backfill_retries_only_uncommitted_fights_on_resume(monkeypatch):
+    pending = {"a", "b", "c"}
+    scrape_failures, write_failures = {"a"}, {"b"}
+    fetched = []
+
+    def fetch(url, event_date=None):
+        fetched.append(url)
+        if url in scrape_failures:
+            raise ScrapeError("temporary HTTP failure")
+        return {"url": url, "referee": "Ref"}
+
+    def commit(data, *, enriched):
+        if data["url"] in write_failures:
+            raise RuntimeError("temporary write failure")
+        pending.remove(data["url"])
+
+    loader = Mock()
+    loader.backfill_candidates.side_effect = lambda after, limit, refresh: [
+        {"url": url, "date": None} for url in sorted(pending) if url > after
+    ][:limit]
+    loader.create_fight.side_effect = commit
+    monkeypatch.setattr(
+        run_backfill,
+        "UfcStatsScraper",
+        lambda **kwargs: Mock(scrape_fight_details=fetch),
+    )
+    first = run_backfill.backfill(loader, Mock(), workers=2)
+    assert first["failed"] == 2 and first["updated"] == 1
+    assert pending == {"a", "b"}
+    scrape_failures.clear()
+    write_failures.clear()
+    fetched.clear()
+    second = run_backfill.backfill(loader, Mock(), workers=2)
+    assert second["failed"] == 0 and second["updated"] == 2
+    assert sorted(fetched) == ["a", "b"] and not pending
+
+
+@pytest.mark.parametrize("args", [["--workers", "0"], ["--delay", "-1"]])
+def test_backfill_rejects_invalid_concurrency(args):
+    with pytest.raises(SystemExit) as error:
+        run_backfill.main(args)
+    assert error.value.code == 2
 
 
 def test_backfill_cli_dry_run_does_not_modify_schema_or_metadata(monkeypatch, capsys):

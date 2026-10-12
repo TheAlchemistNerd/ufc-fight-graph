@@ -24,6 +24,14 @@ An event is checkpointed only after all its fight summaries commit. Partial even
 are safe to retry because writes use `MERGE`. Detail enrichment resumes from the
 graph's version markers independently of event checkpoints.
 
+`--workers` controls concurrent HTTP requests in every stage (default 2); each
+worker keeps its own session and `--delay` pacing. To speed up a resumed crawl,
+stop the existing crawler, verify it has exited, then run
+`python run_crawl.py --workers 4 --delay 1 --backup-dir backups` using the same
+checkpoint and database. Completed records are skipped without `--reset`.
+Fight details are fetched in bounded batches, with writes committed serially.
+Restart the upload watcher if the crawl completion-state file identifies a new run.
+
 The older crawler's list-shaped checkpoints could include unprocessed URLs. The
 new crawler rejects those files; use `--reset` to rebuild them. Use a separate
 checkpoint per database. Following a database rebuild or restore, use `--reset`.
@@ -41,6 +49,8 @@ python run_backfill.py --limit 50
 python run_backfill.py
 python run_backfill.py --refresh
 ```
+
+`run_backfill.py` also accepts `--workers` and `--delay`.
 
 Dry runs only read coverage and select eligible fights. Normal backfills first
 normalize parseable legacy dates, fill missing fight dates from events, and connect

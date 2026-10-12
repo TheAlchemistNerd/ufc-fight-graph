@@ -42,7 +42,8 @@ results, title status and judge totals), then fighter profiles. `--limit` bounds
 new events/fighters per stage; detail enrichment processes the database backlog.
 `--skip-details` imports summaries for later enrichment. `--fighters-only` refreshes
 profiles separately. Default concurrency is two HTTP workers with at least one
-second between requests per worker; enrichment is sequential.
+second between requests per worker. `--workers` and `--delay` apply to every stage,
+including fight details. Database writes and checkpoint updates remain serial.
 
 A successful database write precedes every checkpoint. Failed URLs remain eligible
 for retry. Re-running the crawl discovers new records; `--reset` rebuilds the
