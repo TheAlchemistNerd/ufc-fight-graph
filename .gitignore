@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 .env
 .env.*
+rclone.conf
+rclone.conf.*
 !.env.example
 .cache/
 .pytest_cache/

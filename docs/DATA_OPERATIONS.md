@@ -70,8 +70,54 @@ Upload the ZIP to a Google Drive backup folder as a regular file, preserving its
 format. Keep the timestamp in its filename and verify the uploaded file's size.
 Create a snapshot after initial recovery and another after the full crawl finishes.
 For recovery on another machine, download the ZIP, configure an empty Neo4j
-database and run the restore command above. Drive uploads are a separate step;
-`run_backup.py` creates a local file.
+database and run the restore command above. `run_backup.py` creates a local file.
+
+### Direct Google Drive uploads
+
+The uploader uses [rclone](https://rclone.org/drive/) with its own Google OAuth
+connection. After the one-time sign-in, uploads and token refresh run locally
+without Codex or AI usage. On Windows x64, this helper installs a checksum-verified
+rclone binary and connects it to your backup folder:
+
+```powershell
+powershell -File tools/connect_drive.ps1 -FolderId YOUR_GOOGLE_DRIVE_FOLDER_ID
+```
+
+Use the Google account that owns the destination folder. Set `UFC_DRIVE_REMOTE`,
+`UFC_DRIVE_FOLDER_ID`, `RCLONE_EXE` and `RCLONE_CONFIG` in `.env` using the paths
+printed by the helper. OAuth credentials stay in `%LOCALAPPDATA%/UFCFightGraph/rclone.conf`,
+outside the repository. On other platforms, install rclone and configure a `drive`
+remote with `rclone config`.
+
+```sh
+python run_upload.py backups/ufc-graph-TIMESTAMP.zip
+python run_crawl.py --backup-dir backups --upload-drive
+```
+
+The upload validates the ZIP's graph checksum and counts, preserves existing files,
+and verifies the remote name, size, MD5 and file ID before writing a `.drive.json`
+receipt beside the archive. Re-running a successful upload reuses identical bytes.
+Conflicting files with the same name produce an error instead of being overwritten.
+
+For a crawl already running with a completion-state file, start a separate watcher:
+
+```powershell
+powershell -File tools/start_upload.ps1
+```
+
+It reads `logs/crawl-run.json` and only uploads the archive recorded by a successful
+crawl. The required fields are `status`, `exit_code`, `started_utc`, `finished_utc`
+and `latest_backup`; timestamps must be timezone-aware ISO strings. The archive's
+creation timestamp must fall within that run. The existing local crawl wrapper
+writes this state; ordinary foreground `run_crawl.py` invocations use `--upload-drive`
+instead. The watcher checks every minute, retries upload failures every five minutes,
+and records status and the verified Drive receipt in `logs/crawl-run.upload.json`.
+The crawl state remains owned by the crawler. Terminal errors are recorded as
+`failed`; its OS lock prevents duplicate watchers. Logs are
+`logs/drive-upload.out.log` and `logs/drive-upload.err.log`.
+
+Keep Windows awake and online with Neo4j running. The uploader operates independently
+of the Codex app. After a reboot, resume the crawl or restart its watcher as appropriate.
 
 Export while writes are paused for a stable snapshot. Restoration verifies the
 checksum and endpoints, requires an empty database, installs uniqueness constraints

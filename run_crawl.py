@@ -15,6 +15,7 @@ from infrastructure.neo4j_client import Neo4jConnection
 from infrastructure.ufcstats import UfcStatsScraper
 from run_backfill import backfill
 from run_backup import backup
+from run_upload import DriveUploader
 
 logger = logging.getLogger(__name__)
 
@@ -87,13 +88,21 @@ def main(argv=None):
     parser.add_argument("--env-file")
     parser.add_argument("--backup-dir", help="Export a portable graph ZIP when the crawl ends")
     parser.add_argument(
+        "--upload-drive",
+        action="store_true",
+        help="Upload the successful crawl's backup directly with rclone",
+    )
+    parser.add_argument(
         "--skip-details", action="store_true", help="Import summaries; run run_backfill.py later"
     )
     args = parser.parse_args(argv)
+    if args.upload_drive and not args.backup_dir:
+        parser.error("--upload-drive requires --backup-dir")
     if args.workers < 1 or args.delay < 0 or (args.limit is not None and args.limit < 1):
         parser.error("workers/limit must be positive and delay must be nonnegative")
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     config = load_config(args.env_file)
+    uploader = DriveUploader.from_environment() if args.upload_drive else None
     if args.reset and not args.status:
         Path(args.checkpoint).unlink(missing_ok=True)
     checkpoint = Checkpoint(args.checkpoint, config)
@@ -124,7 +133,10 @@ def main(argv=None):
             ]
             results["fighters"] = crawl_stage(urls, "fighters", loader, checkpoint, **options)
         if args.backup_dir:
-            print(f"Backup: {backup(db, args.backup_dir).resolve()}")
+            archive = backup(db, args.backup_dir).resolve()
+            print(f"Backup: {archive}")
+            if uploader and not any(stage["failed"] for stage in results.values()):
+                print("Drive upload: " + json.dumps(uploader.upload(archive)))
         print(json.dumps(results, indent=2))
     return 1 if any(stage["failed"] for stage in results.values()) else 0
 

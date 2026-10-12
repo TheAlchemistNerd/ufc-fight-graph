@@ -64,6 +64,9 @@ database and preserves Neo4j temporal types. Upload the ZIP to Google
 Drive for an off-machine copy. See [backfill and recovery](docs/DATA_OPERATIONS.md).
 
 Use `python run_crawl.py --backup-dir backups` to export a snapshot after the crawl.
+Add `--upload-drive` after configuring the [direct Google Drive uploader](docs/DATA_OPERATIONS.md#direct-google-drive-uploads)
+to upload the final snapshot independently of Codex. An existing crawl can use
+`powershell -File tools/start_upload.ps1` to attach a local completion watcher.
 
 ## Development
 
