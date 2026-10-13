@@ -2,6 +2,8 @@
 
 import math
 from collections import Counter
+from html import escape
+from textwrap import wrap
 
 import pandas as pd
 import plotly.express as px
@@ -20,8 +22,12 @@ def style_chart(fig, height=400):
         margin=dict(l=10, r=20, t=30, b=20),
         legend=dict(orientation="h", y=-0.2),
     )
-    fig.update_xaxes(gridcolor="rgba(255,255,255,0.05)", zeroline=False, title_font_size=12)
-    fig.update_yaxes(gridcolor="rgba(255,255,255,0.05)", zeroline=False, title_font_size=12)
+    fig.update_xaxes(
+        gridcolor="rgba(255,255,255,0.05)", zeroline=False, title_font_size=12, automargin=True
+    )
+    fig.update_yaxes(
+        gridcolor="rgba(255,255,255,0.05)", zeroline=False, title_font_size=12, automargin=True
+    )
     return fig
 
 
@@ -67,7 +73,24 @@ def _chart(
 
 def horizontal_bar(df, x, y, color=None, **kwargs):
     fig = _chart(px.bar, df, x, y, color=color, orientation="h", **kwargs)
-    fig.update_yaxes(autorange="reversed")
+    if df.empty:
+        return fig
+    values = df[y].drop_duplicates().tolist()
+    lines = [wrap(str(value), width=24, break_long_words=False) or [""] for value in values]
+    fig.update_yaxes(
+        autorange="reversed",
+        tickmode="array",
+        tickvals=values,
+        ticktext=["<br>".join(escape(line) for line in label) for label in lines],
+        tickfont=dict(size=13, color="#e4e7eb"),
+        title_text=None,
+    )
+    # Category slots are equally spaced, so allow every row the tallest label's height.
+    row_height = max(len(label) for label in lines) * 16 + 12
+    fig.update_layout(height=max(fig.layout.height, len(values) * row_height + 80))
+    if color == x:
+        # The x-axis already supplies this scale; preserve width for labels and bars.
+        fig.update_layout(coloraxis_showscale=False)
     return fig
 
 
