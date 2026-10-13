@@ -1,10 +1,49 @@
 # UFC Fight Graph
 
-Scrape [UFCStats](http://ufcstats.com) into Neo4j and explore fights, fighters,
-events, referees and judges through a Streamlit dashboard. Python 3.11–3.13
-and Neo4j 5.26 LTS are the supported baseline.
+A searchable [UFCStats](http://ufcstats.com) archive connecting fighters, fights,
+events and officials in Neo4j. The Streamlit dashboard lets you follow a fighter's
+opponents, inspect who officiated a bout, compare careers and explore where events
+took place.
+
+![Dashboard overview showing archive counts, yearly fight history and outcomes](docs/images/overview.jpg)
+
+## Data snapshot · 13 October 2026
+
+| Imported records | Count |
+|---|---:|
+| Fights | 8,935 |
+| Fighter profiles | 4,628 |
+| Events | 792 |
+| Referees | 249 |
+| Judges | 470 |
+
+The graph contains **15,360 nodes and 57,759 relationships**. Named judge totals
+are present for **4,064 fights**: 4,041 decisions and 23 overturned results.
+See the [judge-coverage audit](docs/DATA_OPERATIONS.md#judge-coverage) for complete,
+partial and missing records.
+
+## Explore the graph
+
+The dashboard groups pages into Explore, Officials, Analysis and Network:
+
+- Search fights by fighter, event, referee or location; filter by year, division,
+  result type or title status, then export matching rows to CSV.
+- Open a fight to inspect participants, results, referee and published judge totals.
+- Compare fighter profiles, head-to-head meetings and common opponents.
+- Browse referee assignments, judge scorecards and opponent networks.
+- Explore event and fight counts on a world map, then filter host locations and
+  methods by country or territory. Source links lead back to UFCStats.
+
+![Plotly world map showing UFC event counts by country or territory](docs/images/geography.jpg)
+
+The crawl resumes from committed checkpoints, and fight-detail backfills retry
+unfinished work. Portable graph ZIPs support recovery into an empty database;
+the local Google Drive uploader verifies each uploaded backup. Operational details
+are in [data operations and recovery](docs/DATA_OPERATIONS.md).
 
 ## Setup
+
+Python 3.11–3.13 and Neo4j 5.26 LTS are the supported baseline.
 
 ```powershell
 python -m venv .venv
@@ -64,26 +103,17 @@ properties and relationships, with a checksum manifest. Restore targets an empty
 database and preserves Neo4j temporal types. Upload the ZIP to Google
 Drive for an off-machine copy. See [backfill and recovery](docs/DATA_OPERATIONS.md).
 
-The dashboard groups pages into Explore, Officials, Analysis and Network:
-
-- Search the fight archive by fighter, event, referee or location; filter by year,
-  division, result type or title status, then export matching rows to CSV.
-- Select a fight to inspect participants, results, referee and published judge totals.
-- Explore fighter career statistics and opponent maps, or compare two profiles.
-- Browse referee assignments and judge scorecards alongside the existing analyses.
-- Explore a Plotly world map by event or fight count, then filter host locations
-  and fight methods by country or territory. Source links open UFCStats in a new tab.
-
 Archive reads are cached for two minutes. **Refresh data** reloads the archive after
 an import. Career averages and records can include bouts outside the stored UFC
-history; published judge totals do not include round-by-round scorecards. See
-[judge coverage](docs/DATA_OPERATIONS.md#judge-coverage) for the dated audit of
-complete, partial and missing judge records.
+history; published judge totals describe final totals rather than round-by-round
+scorecards.
 
 Use `python run_crawl.py --backup-dir backups` to export a snapshot after the crawl.
 Add `--upload-drive` after configuring the [direct Google Drive uploader](docs/DATA_OPERATIONS.md#direct-google-drive-uploads)
-to upload the final snapshot independently of Codex. An existing crawl can use
-`powershell -File tools/start_upload.ps1` to attach a local completion watcher.
+to upload the final snapshot independently of Codex. It validates the archive,
+checks the uploaded file's name, size and checksum, and saves a verification receipt.
+An existing crawl can use `powershell -File tools/start_upload.ps1` to attach a local
+completion watcher.
 
 ## Development
 
