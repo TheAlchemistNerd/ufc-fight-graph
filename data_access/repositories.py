@@ -518,7 +518,7 @@ class StrikingRepo(BaseRepo):
 class GeographyRepo(BaseRepo):
     """Location-based event analysis."""
 
-    def get_events_by_location(self, limit: int = 15) -> pd.DataFrame:
+    def get_events_by_location(self) -> pd.DataFrame:
         return self._query(
             """
             MATCH (e:Event)-[:HELD_AT]->(loc:Location)
@@ -527,12 +527,10 @@ class GeographyRepo(BaseRepo):
                  count(DISTINCT e) AS events,
                  count(DISTINCT fight) AS total_fights
             ORDER BY events DESC
-            LIMIT $limit
         """,
-            {"limit": limit},
         )
 
-    def get_fight_outcomes_by_location(self, limit: int = 20) -> pd.DataFrame:
+    def get_fight_outcomes_by_location(self) -> pd.DataFrame:
         return self._query(
             """
             MATCH (e:Event)-[:HELD_AT]->(loc:Location)
@@ -541,9 +539,7 @@ class GeographyRepo(BaseRepo):
                    coalesce(fight.method, 'Unknown') AS result,
                    count(fight) AS count
             ORDER BY count DESC
-            LIMIT $limit
         """,
-            {"limit": limit},
         )
 
 

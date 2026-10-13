@@ -111,6 +111,36 @@ def donut_chart(df, names, values):
     return style_chart(fig, 310)
 
 
+def event_map(countries, metric="events"):
+    mapped = countries.dropna(subset=["iso3"])
+    fig = px.choropleth(
+        mapped,
+        locations="iso3",
+        locationmode="ISO-3",
+        color=metric,
+        hover_name="country",
+        hover_data={"iso3": False, "events": ":,", "total_fights": ":,", "locations": ":,"},
+        labels={"events": "Events", "total_fights": "Fights", "locations": "Host locations"},
+        color_continuous_scale=["#4e2930", "#ef5544", "#ffd29b"],
+        projection="natural earth",
+    )
+    style_chart(fig, 500)
+    fig.update_geos(
+        bgcolor="rgba(0,0,0,0)",
+        showframe=False,
+        showcoastlines=False,
+        showland=True,
+        landcolor="#252b34",
+        showcountries=True,
+        countrycolor="#535b68",
+        lataxis_range=[-60, 85],
+        resolution=50,
+    )
+    fig.update_traces(marker_line_color="#aeb8c6", marker_line_width=0.5)
+    fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), coloraxis_colorbar=dict(thickness=12))
+    return fig
+
+
 def opponent_graph(history, fighter_url, fighter_name):
     opponents, labels = Counter(), {}
     for participants in history["fighters"]:

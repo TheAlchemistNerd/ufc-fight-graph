@@ -39,6 +39,7 @@ from data_access.repositories import (
 )
 from infrastructure.neo4j_client import Neo4jConnection
 from web.charts import (
+    event_map,
     horizontal_bar,
     line_chart,
     scatter_chart,
@@ -53,7 +54,9 @@ from web.explorer import (
     page_judge_analysis,
     page_overview,
     page_referee_analysis,
+    source_columns,
 )
+from web.geography import country_totals, prepare_locations
 
 
 @st.cache_resource
@@ -298,28 +301,65 @@ def page_career(repos: dict):
 
 def page_geographic(repos: dict):
     st.title("Geographic Insights")
-
-    st.subheader("Events by Location")
-    df = repos["geography"].get_events_by_location()
-    if not df.empty:
-        st.plotly_chart(
-            vertical_bar(df, "location", "events", "events", height=500), width="stretch"
+    st.caption("Where the UFC has held events. Hover over a country or territory for its totals.")
+    locations = repos["geography"].get_events_by_location()
+    if locations.empty:
+        st.info("The map will appear once events with locations are imported.")
+        return
+    locations = prepare_locations(locations)
+    countries = country_totals(locations)
+    for column, label, count in zip(
+        st.columns(3),
+        ["Events", "Host locations", "Mapped countries / territories"],
+        [locations.events.sum(), len(locations), countries.iso3.notna().sum()],
+    ):
+        column.metric(label, f"{count:,}")
+    metric = st.radio("Colour map by", ["Events", "Fights"], horizontal=True)
+    st.plotly_chart(
+        event_map(countries, "events" if metric == "Events" else "total_fights"),
+        width="stretch",
+        theme=None,
+        config={"displaylogo": False, "scrollZoom": False},
+    )
+    unmapped = locations[locations.iso3.isna()]
+    if not unmapped.empty:
+        st.caption(
+            f"{unmapped.events.sum():,} events have locations not mapped to a country code; "
+            "they remain in the tables below."
         )
-
-    st.subheader("Fight Methods by Location")
-    df = repos["geography"].get_fight_outcomes_by_location()
-    if not df.empty:
-        st.plotly_chart(
-            scatter_chart(
-                df,
-                "location",
-                "count",
-                color_col="result",
-                hover_data=["location"],
-                color_scale="Set1",
-            ),
-            width="stretch",
+    country = st.selectbox("Explore a country / territory", ["All", *sorted(countries.country)])
+    selected = locations if country == "All" else locations[locations.country == country]
+    st.subheader("Host locations" if country == "All" else f"Host locations · {country}")
+    st.plotly_chart(
+        horizontal_bar(selected.head(15), "events", "location", "events", height=460),
+        width="stretch",
+        theme=None,
+    )
+    st.caption(
+        f"Chart shows the top {min(15, len(selected))} locations. The table includes all matches."
+    )
+    st.dataframe(
+        selected[["location", "country", "events", "total_fights"]].rename(
+            columns={
+                "location": "Location",
+                "country": "Country / territory",
+                "events": "Events",
+                "total_fights": "Fights",
+            }
+        ),
+        hide_index=True,
+        width="stretch",
+    )
+    outcomes = repos["geography"].get_fight_outcomes_by_location()
+    if not outcomes.empty:
+        outcomes = outcomes[outcomes.location.isin(selected.location)]
+        totals = (
+            outcomes.groupby("result", as_index=False)["count"]
+            .sum()
+            .sort_values("count", ascending=False)
         )
+        st.subheader("Fight methods" if country == "All" else f"Fight methods · {country}")
+        st.plotly_chart(horizontal_bar(totals, "count", "result"), width="stretch", theme=None)
 
 
 def page_style_matchups(repos: dict):
@@ -421,7 +461,7 @@ def page_network(repos: dict):
     if selected:
         df = repos["network"].get_transitive_wins(selected)
         if not df.empty:
-            st.dataframe(df, width="stretch", hide_index=True)
+            st.dataframe(df, width="stretch", hide_index=True, column_config=source_columns(df))
         else:
             st.info(f"No transitive wins found for {choices[selected]}.")
 
@@ -436,7 +476,7 @@ def page_network(repos: dict):
     if f1 and f2 and f1 != f2:
         df = repos["network"].get_common_opponents(f1, f2)
         if not df.empty:
-            st.dataframe(df, width="stretch", hide_index=True)
+            st.dataframe(df, width="stretch", hide_index=True, column_config=source_columns(df))
         else:
             st.info(f"No common opponents found between {choices[f1]} and {choices[f2]}.")
 
@@ -444,7 +484,7 @@ def page_network(repos: dict):
     st.subheader("Fighter Network Sample")
     net = repos["network"].get_network_sample()
     if not net.empty:
-        st.dataframe(net, width="stretch", hide_index=True)
+        st.dataframe(net, width="stretch", hide_index=True, column_config=source_columns(net))
 
 
 def page_evolution(repos: dict):

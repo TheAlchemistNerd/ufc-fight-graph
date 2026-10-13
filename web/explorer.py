@@ -35,7 +35,21 @@ def source_link(label, url):
             "ufcstats.com",
             "www.ufcstats.com",
         ):
-            st.link_button(label, url)
+            st.link_button(label, url, help="Opens UFCStats in a new tab.")
+
+
+def source_columns(frame):
+    """Render source identities as links while retaining their URLs for exports."""
+    return {
+        column: st.column_config.LinkColumn(
+            column.replace("_url", " source").replace("_", " ").title(),
+            display_text="UFCStats ↗",
+            help="Opens UFCStats in a new tab.",
+            width="small",
+        )
+        for column in frame.columns
+        if column.endswith("_url") or column in {"url", "Source"}
+    }
 
 
 def value(value_, suffix="", decimals=None):
@@ -96,6 +110,7 @@ def fight_detail(row):
         else:
             st.caption("No judge totals are published for this bout in the imported source.")
         source_link("Open fight on UFCStats ↗", row["fight_url"])
+        source_link("Open event on UFCStats ↗", row.get("event_url"))
 
 
 def browse_bouts(frame, key, page_size=50):
@@ -114,12 +129,14 @@ def browse_bouts(frame, key, page_size=50):
     st.caption(
         f"{start + 1:,}–{start + len(visible):,} of {len(frame):,} fights · Select a row to inspect the bout."
     )
+    table = fight_table(visible)
     selection = st.dataframe(
-        fight_table(visible),
+        table,
         hide_index=True,
         width="stretch",
         height=360,
-        column_order=["Date", "Matchup", "Event", "Method", "Winner", "Referee"],
+        column_order=["Date", "Source", "Matchup", "Event", "Method", "Winner", "Referee"],
+        column_config=source_columns(table),
         on_select="rerun",
         selection_mode="single-row",
         key=f"{key}_table_{fingerprint}_{page}",
@@ -384,7 +401,7 @@ def page_comparison(repos):
     if common.empty:
         st.info("No common opponents are recorded.")
     else:
-        st.dataframe(common, hide_index=True, width="stretch")
+        st.dataframe(common, hide_index=True, width="stretch", column_config=source_columns(common))
 
 
 def page_referee_analysis(repos):
@@ -476,9 +493,7 @@ def page_judge_analysis(repos):
         st.caption(
             "Scores retain the source's published total. They do not provide a round-by-round breakdown or establish judging accuracy."
         )
-        table = selected_cards.merge(fights[["fight_url", "bout", "date"]], on="fight_url").drop(
-            columns="fight_url"
-        )
+        table = selected_cards.merge(fights[["fight_url", "bout", "date"]], on="fight_url")
         st.dataframe(
             table.rename(
                 columns={"judge": "Judge", "score": "Total", "bout": "Matchup", "date": "Date"}
@@ -486,6 +501,7 @@ def page_judge_analysis(repos):
             hide_index=True,
             width="stretch",
             height=240,
+            column_config=source_columns(table),
         )
     st.subheader("Scored fights")
     browse_bouts(assigned, "judge")

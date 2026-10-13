@@ -71,6 +71,8 @@ The dashboard groups pages into Explore, Officials, Analysis and Network:
 - Select a fight to inspect participants, results, referee and published judge totals.
 - Explore fighter career statistics and opponent maps, or compare two profiles.
 - Browse referee assignments and judge scorecards alongside the existing analyses.
+- Explore a Plotly world map by event or fight count, then filter host locations
+  and fight methods by country or territory. Source links open UFCStats in a new tab.
 
 Archive reads are cached for two minutes. **Refresh data** reloads the archive after
 an import. Career averages and records can include bouts outside the stored UFC
