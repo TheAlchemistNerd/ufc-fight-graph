@@ -63,6 +63,30 @@ ordinary reruns. `--refresh` checks all fight pages again. HTTP and write failur
 retain retry eligibility and produce a nonzero exit code. `--limit` counts selected
 fights, including failures. Progress logs report every 25 selected fights.
 
+## Judge coverage
+
+The completed crawl was audited on **2026-10-13**. These counts describe that
+snapshot; judge coverage has some gaps even though all fight pages were fetched.
+
+| Decision fights | Count |
+| --- | ---: |
+| All three named judges and totals | 4,034 |
+| Only one or two named judges | 7 |
+| No named judges | 98 |
+| **Total decision fights** | **4,139** |
+
+Of the 98 fights with no named judges, **42 have anonymous score totals saved in
+the fight details**, while **56 have no totals recorded**. Source spot-checks
+confirmed missing names or empty details on UFCStats itself, including
+[Blaydes vs. Hunt](http://ufcstats.com/fight-details/cd67f6ddb2920193) and
+[Severn vs. Taktarov](http://ufcstats.com/fight-details/524b49a676498c6d).
+
+The **4,064 fights with judge scorecards** count means **4,041 decision fights
+with at least one named judge, plus 23 overturned results retaining scorecards**.
+It does not mean every counted fight has all three named judges. These are final
+totals, rather than round-by-round cards. The crawl finished; completing the
+missing judge information would require additional sources.
+
 ## Backup and restore
 
 ```sh

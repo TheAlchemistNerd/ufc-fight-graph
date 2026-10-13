@@ -74,7 +74,9 @@ The dashboard groups pages into Explore, Officials, Analysis and Network:
 
 Archive reads are cached for two minutes. **Refresh data** reloads the archive after
 an import. Career averages and records can include bouts outside the stored UFC
-history; published judge totals do not include round-by-round scorecards.
+history; published judge totals do not include round-by-round scorecards. See
+[judge coverage](docs/DATA_OPERATIONS.md#judge-coverage) for the dated audit of
+complete, partial and missing judge records.
 
 Use `python run_crawl.py --backup-dir backups` to export a snapshot after the crawl.
 Add `--upload-drive` after configuring the [direct Google Drive uploader](docs/DATA_OPERATIONS.md#direct-google-drive-uploads)
