@@ -54,7 +54,9 @@ Copy-Item .env.example .env
 
 Set `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASS` and optionally `NEO4J_DATABASE` in
 `.env` or the environment. Environment values take precedence. `--env-file`
-selects another file for command-line tools. Credentials and data stay outside Git.
+selects another file for command-line tools. For Aura, copy its `neo4j+s://` URI,
+username, password and database into these settings; downloaded credential files
+and `.env` stay outside Git.
 
 Install Neo4j using the [Windows ZIP instructions](https://neo4j.com/docs/operations-manual/current/installation/windows/),
 or use Docker with a **named volume**:

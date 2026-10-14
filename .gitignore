@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 .env
 .env.*
+Neo4j-*-Created-*.txt
 rclone.conf
 rclone.conf.*
 !.env.example
