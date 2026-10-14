@@ -1,6 +1,7 @@
 """Neo4j connection lifecycle and schema shared by all entry points."""
 
 import logging
+from urllib.parse import urlsplit
 
 from neo4j import GraphDatabase
 
@@ -51,8 +52,10 @@ class Neo4jConnection:
             # Keep the Cloud logs useful without printing exception text that
             # could contain connection details or credentials.
             code = getattr(exc, "code", None) or "unavailable"
+            host = urlsplit(self.config.uri).hostname or "unknown"
             logger.warning(
-                "Neo4j connection check failed (%s, code=%s)",
+                "Neo4j connection check failed for host %s (%s, code=%s)",
+                host,
                 type(exc).__name__,
                 code,
             )
