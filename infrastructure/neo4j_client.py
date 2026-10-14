@@ -1,8 +1,12 @@
 """Neo4j connection lifecycle and schema shared by all entry points."""
 
+import logging
+
 from neo4j import GraphDatabase
 
 from config.settings import Neo4jConfig
+
+logger = logging.getLogger(__name__)
 
 
 class Neo4jConnection:
@@ -43,7 +47,15 @@ class Neo4jConnection:
     def test_connection(self):
         try:
             return True, self.run_query("MATCH (n) RETURN count(n) AS c")[0]["c"]
-        except Exception:
+        except Exception as exc:
+            # Keep the Cloud logs useful without printing exception text that
+            # could contain connection details or credentials.
+            code = getattr(exc, "code", None) or "unavailable"
+            logger.warning(
+                "Neo4j connection check failed (%s, code=%s)",
+                type(exc).__name__,
+                code,
+            )
             return False, 0
 
     def setup_schema(self):
