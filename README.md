@@ -5,6 +5,9 @@ events and officials in Neo4j. The Streamlit dashboard lets you follow a fighter
 opponents, inspect who officiated a bout, compare careers and explore where events
 took place.
 
+Open the [live Streamlit dashboard](https://ufc-fight-graph.streamlit.app/) to
+explore the deployed interface.
+
 ![Dashboard overview showing archive counts, yearly fight history and outcomes](docs/images/overview.jpg)
 
 ## Data snapshot · 13 October 2026
@@ -33,6 +36,12 @@ The dashboard groups pages into Explore, Officials, Analysis and Network:
 - Browse referee assignments, judge scorecards and opponent networks.
 - Explore event and fight counts on a world map, then filter host locations and
   methods by country or territory. Source links lead back to UFCStats.
+
+Markdown copies of the [X thread](docs/publication/UFC%20Fight%20Graph%20X%20Thread.md),
+[LinkedIn article](docs/publication/UFC%20Fight%20Graph%20LinkedIn%20Article.md),
+the [YouTube presentation narration](docs/publication/UFC%20Fight%20Graph%20Presentation%20Narration.md),
+and the [slide-by-slide presentation copy](docs/publication/UFC%20Fight%20Graph%20Presentation.md)
+are available in the repository.
 
 ![Plotly world map showing UFC event counts by country or territory](docs/images/geography.jpg)
 
