@@ -133,6 +133,13 @@ and verifies the remote name, size, MD5 and file ID before writing a `.drive.jso
 receipt beside the archive. Re-running a successful upload reuses identical bytes.
 Conflicting files with the same name produce an error instead of being overwritten.
 
+The scheduled GitHub Actions crawler can use the same rclone connection. Configure
+the `RCLONE_CONFIG_CONTENT` repository secret and `UFC_DRIVE_FOLDER_ID` Actions
+variable as described in [CI/CD setup](CI_CD_SETUP.md#ci-and-container-setup). It
+stores the checkpoint under `crawl-state/` in the Drive folder and uploads a
+verified snapshot after successful runs. The checkpoint is scoped to the Aura
+database, while the Actions cache remains a local-run fallback.
+
 For a crawl already running with a completion-state file, start a separate watcher:
 
 ```powershell

@@ -22,6 +22,8 @@ jobs:
       NEO4J_USER: ${{ secrets.NEO4J_USER }}
       NEO4J_PASS: ${{ secrets.NEO4J_PASS }}
       NEO4J_DATABASE: ${{ secrets.NEO4J_DATABASE }}
+      UFC_DRIVE_REMOTE: 'ufc-backups:'
+      UFC_DRIVE_FOLDER_ID: ${{ vars.UFC_DRIVE_FOLDER_ID }}
       PYTHONUNBUFFERED: '1'
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +39,63 @@ jobs:
           path: logs/crawl_checkpoint.json
           key: ufc-crawl-v2-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: ufc-crawl-v2-
+      - name: Configure Google Drive access
+        id: drive
+        env:
+          RCLONE_CONFIG_CONTENT: ${{ secrets.RCLONE_CONFIG_CONTENT }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$RCLONE_CONFIG_CONTENT" || -z "$UFC_DRIVE_FOLDER_ID" ]]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Google Drive is not configured; Drive sync is skipped."
+            exit 0
+          fi
+          sudo apt-get update
+          sudo apt-get install --yes rclone
+          config_file="$RUNNER_TEMP/rclone.conf"
+          printf '%s' "$RCLONE_CONFIG_CONTENT" > "$config_file"
+          chmod 600 "$config_file"
+          echo "RCLONE_CONFIG=$config_file" >> "$GITHUB_ENV"
+          if ! rclone --config "$config_file" listremotes | grep -Fxq "$UFC_DRIVE_REMOTE"; then
+            echo "The rclone config does not contain the expected Drive remote." >&2
+            exit 1
+          fi
+          checkpoint_name="$(python -c 'import hashlib, os; target = os.environ["NEO4J_URI"] + "|" + (os.getenv("NEO4J_DATABASE") or "neo4j"); print(hashlib.sha256(target.encode()).hexdigest() + ".json")')"
+          echo "UFC_DRIVE_CHECKPOINT_NAME=$checkpoint_name" >> "$GITHUB_ENV"
+          echo "UFC_DRIVE_CHECKPOINT_REMOTE=${UFC_DRIVE_REMOTE}crawl-state/$checkpoint_name" >> "$GITHUB_ENV"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - name: Restore checkpoint from Google Drive
+        if: steps.drive.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          remote_dir="${UFC_DRIVE_REMOTE}crawl-state"
+          rclone --config "$RCLONE_CONFIG" --drive-root-folder-id "$UFC_DRIVE_FOLDER_ID" mkdir "$remote_dir"
+          if [[ -f logs/crawl_checkpoint.json ]]; then
+            python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path("logs/crawl_checkpoint.json")
+          expected = hashlib.sha256(
+              f"{os.environ['NEO4J_URI']}|{os.getenv('NEO4J_DATABASE') or 'neo4j'}".encode()
+          ).hexdigest()
+          saved = json.loads(path.read_text(encoding="utf-8"))
+          if saved.get("target") != expected:
+              path.unlink()
+              print("Discarded a cached checkpoint for a different database.")
+          PY
+          fi
+          remote_files="$(rclone --config "$RCLONE_CONFIG" --drive-root-folder-id "$UFC_DRIVE_FOLDER_ID" lsf "$remote_dir" --files-only)"
+          if printf '%s\n' "$remote_files" | grep -Fxq "$UFC_DRIVE_CHECKPOINT_NAME"; then
+            rclone --config "$RCLONE_CONFIG" --drive-root-folder-id "$UFC_DRIVE_FOLDER_ID" copyto "$UFC_DRIVE_CHECKPOINT_REMOTE" logs/crawl_checkpoint.json
+            echo "Restored the database-scoped checkpoint from Google Drive."
+          else
+            echo "No Drive checkpoint exists yet; using a valid Actions cache or starting clean."
+          fi
       - name: Run crawl
+        id: run_crawl
         env:
           MODE: ${{ inputs.mode || 'incremental' }}
         run: |
@@ -53,12 +111,34 @@ jobs:
         with:
           path: logs/crawl_checkpoint.json
           key: ufc-crawl-v2-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Persist checkpoint to Google Drive
+        if: always() && steps.drive.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          if [[ -f logs/crawl_checkpoint.json ]]; then
+            rclone --config "$RCLONE_CONFIG" --drive-root-folder-id "$UFC_DRIVE_FOLDER_ID" copyto logs/crawl_checkpoint.json "$UFC_DRIVE_CHECKPOINT_REMOTE" --checksum
+            echo "Persisted the crawl checkpoint to Google Drive."
+          else
+            echo "No checkpoint was written in this run; the existing Drive checkpoint is unchanged."
+          fi
       - name: Export graph backup
+        id: backup
         if: always() && env.NEO4J_URI != ''
         run: python run_backup.py
+      - name: Upload successful graph backup to Google Drive
+        if: >-
+          always() && steps.run_crawl.outcome == 'success' &&
+          steps.backup.outcome == 'success' && steps.drive.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          archive="$(find backups -maxdepth 1 -type f -name '*.zip' -print -quit)"
+          test -n "$archive"
+          python run_upload.py "$archive"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ufc-graph-${{ github.run_number }}
-          path: backups/*.zip
+          path: |
+            backups/*.zip
+            backups/*.drive.json
           retention-days: 30

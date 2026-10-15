@@ -7,14 +7,26 @@
   relevant pull requests, main-branch pushes and manual runs. Pushes and manual
   runs publish to `ghcr.io/OWNER/REPOSITORY/ufc-dashboard:latest` (lowercase path).
   Hosting the dashboard requires running that image.
-- **Incremental UFC Crawl:** Sunday 03:00 UTC and manual runs; uses a persistent database,
-  caches committed checkpoints and uploads complete graph ZIPs as 30-day artifacts.
+- **Incremental UFC Crawl:** Sunday 03:00 UTC and manual runs; uses Aura, keeps a cache
+  fallback, syncs its database-scoped checkpoint to Google Drive, uploads a verified
+  ZIP after successful crawls, and retains the ZIP plus upload receipt as a 30-day artifact.
 
 Set repository secrets `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASS` and optional
 `NEO4J_DATABASE` for the crawler. The database must be reachable from the runner.
 A Windows localhost installation is reachable by a local run, not GitHub-hosted
 runners. The workflow requires configured credentials rather than importing data
 into an ephemeral container that disappears after the job.
+
+To enable Drive sync, add the complete rclone configuration file as the repository
+Actions secret `RCLONE_CONFIG_CONTENT`. Its remote section must be named
+`[ufc-backups]`. Add the Drive destination folder ID as the repository Actions
+variable `UFC_DRIVE_FOLDER_ID`. The workflow writes the secret to a temporary file
+with owner-only permissions, restores the checkpoint for the configured Aura
+database from `crawl-state/`, and uploads checkpoint progress after each run,
+including runs that fail after saving work. A successful crawl also exports a
+checksum-validated graph ZIP to the Drive folder; the artifact remains available
+as a second copy. If Drive settings are absent, the crawler continues with its
+Actions cache and artifact behavior.
 
 Manual crawl modes: `incremental`, `events-only`, `fighters-only`, `backfill`,
 `full-reset`. A reset refreshes records/checkpoints and preserves the existing graph.
